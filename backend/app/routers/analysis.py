@@ -40,7 +40,7 @@ async def handle_user_query(
                 if stock_info:
                     context_data[symbol] = {
                         "stock_info": stock_info,
-                        "chart_data": stock_service.get_chart_data(symbol, "3m")
+                        "chart_data": stock_service.get_chart_data(symbol, "3mo")
                     }
                     
                     # 获取最新分析结果
