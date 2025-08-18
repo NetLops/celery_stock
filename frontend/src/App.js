@@ -5,8 +5,8 @@ import {
   DashboardOutlined, 
   StockOutlined, 
   AnalysisOutlined, 
-  RecommendationOutlined,
-  TasksOutlined 
+  StarOutlined,
+  AppstoreAddOutlined 
 } from '@ant-design/icons';
 import Dashboard from './components/Dashboard';
 import StockAnalysis from './components/StockAnalysis';
@@ -34,12 +34,12 @@ function App() {
     },
     {
       key: '/tasks',
-      icon: <TasksOutlined />,
+      icon: <AppstoreAddOutlined />,
       label: '批量任务',
     },
     {
       key: '/recommendations',
-      icon: <RecommendationOutlined />,
+      icon: <StarOutlined />,
       label: '推荐系统',
     },
     {
