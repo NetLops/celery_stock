@@ -187,7 +187,7 @@ const AIChat = () => {
               <div style={{ marginTop: 8 }}>
                 <Text type="secondary">相关股票: </Text>
                 {msg.contextSymbols.map(symbol => (
-                  <Tag key={symbol} color="blue">{symbol}</Tag>
+                  <Tag key={symbol} color="red">{symbol}</Tag>
                 ))}
               </div>
             )}
@@ -198,13 +198,14 @@ const AIChat = () => {
                 {msg.recommendations.map((rec, index) => (
                   <div key={index} style={{ marginBottom: 8 }}>
                     <Tag color="orange">{rec.symbol || '推荐'}</Tag>
-                    <Text>{rec.description || rec}</Text>
+                    <Text>{rec.rationale || rec}</Text>
+                    <Tag color='blue'>{rec.action || '推荐买入' }</Tag>
                   </div>
                 ))}
               </div>
             )}
 
-            {msg.references && msg.references.length > 0 && (
+            {/* {msg.references && msg.references.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <Divider style={{ margin: '8px 0' }}>参考链接</Divider>
                 {msg.references.map((ref, index) => (
@@ -215,7 +216,7 @@ const AIChat = () => {
                   </div>
                 ))}
               </div>
-            )}
+            )} */}
 
             {msg.suggestions && (
               <div style={{ marginTop: 12 }}>

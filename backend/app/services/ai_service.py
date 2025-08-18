@@ -11,7 +11,7 @@ class AIAnalysisService:
     """AI分析服务"""
     
     def __init__(self):
-        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="https://www.gptapi.us")
+        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="https://api.gpt.ge/v1")
         self.prompts = self._load_prompts()
     
     def _load_prompts(self) -> Dict[str, str]:
@@ -126,18 +126,26 @@ class AIAnalysisService:
             
             prompt = self.prompts[analysis_type].format(**data)
             
-            response = self.client.chat.completions.create(
-                model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system", "content": "你是一位专业的股票分析师，请提供准确、客观的分析建议。"},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=1500
-            )
-            
-            # 解析AI响应
-            ai_response = response.choices[0].message.content
+            try:
+                response = self.client.chat.completions.create(
+                    model="gpt-4.1-mini",
+                    messages=[
+                        {"role": "system", "content": "你是一位专业的股票分析师，请提供准确、客观的分析建议。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=1500
+                )
+                
+                # 解析AI响应
+                ai_response = response.choices[0].message.content
+            except Exception as e:
+                logger.error(f"OpenAI API调用失败: {e}")
+                # 检查是否返回了字符串而不是对象
+                if isinstance(response, str):
+                    ai_response = response
+                else:
+                    raise e
             
             # 尝试解析JSON响应
             try:
@@ -243,22 +251,31 @@ class AIAnalysisService:
 请以JSON格式返回，包含：
 - answer: 主要回答
 - analysis: 分析见解
-- recommendations: 推荐列表（如果适用）
+- recommendations: 推荐列表（列表的元素里包含 "symbol"、"action"、"rationale" 三个字段的信息）
 - chart_suggestions: K线图建议
 - references: 参考信息
 """
             
-            response = self.client.chat.completions.create(
-                model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system", "content": "你是一位专业的股票投资顾问，请基于提供的数据回答用户问题。"},
-                    {"role": "user", "content": context_prompt}
-                ],
-                temperature=0.4,
-                max_tokens=2000
-            )
-            
-            ai_response = response.choices[0].message.content
+            try:
+                response = self.client.chat.completions.create(
+                    model="gpt-4.1-mini",
+                    messages=[
+                        {"role": "system", "content": "你是一位专业的股票投资顾问，请基于提供的数据回答用户问题。"},
+                        {"role": "user", "content": context_prompt}
+                    ],
+                    temperature=0.4,
+                    max_tokens=5000
+                )
+                
+                logger.info(f"Debug Info {response}")
+                ai_response = response.choices[0].message.content
+            except Exception as e:
+                logger.error(f"OpenAI API调用失败: {e}")
+                # 检查是否返回了字符串而不是对象
+                if isinstance(response, str):
+                    ai_response = response
+                else:
+                    raise e
             
             try:
                 result = json.loads(ai_response)
