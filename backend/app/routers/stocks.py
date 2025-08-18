@@ -149,7 +149,11 @@ async def get_stock_analysis(
         analyses = query.order_by(AIAnalysis.created_at.desc()).limit(10).all()
         
         if not analyses:
-            raise HTTPException(status_code=404, detail="未找到分析结果")
+            # 如果没有找到分析结果，返回空列表而不是错误
+            return schemas.BaseResponse(
+                message="未找到分析结果，请先进行分析",
+                data=[]
+            )
         
         result = []
         for analysis in analyses:
