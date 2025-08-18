@@ -33,7 +33,7 @@ const BatchTasks = () => {
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/v1/tasks?limit=50');
+      const response = await axios.get('/api/v1/tasks/?limit=50');
       setTasks(response.data.data || []);
     } catch (error) {
       message.error('获取任务列表失败: ' + (error.response?.data?.detail || error.message));
