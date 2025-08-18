@@ -20,6 +20,28 @@ async def get_stocks(
 ):
     """获取股票列表"""
     stocks = db.query(Stock).offset(skip).limit(limit).all()
+    
+    # 将SQLAlchemy模型转换为Pydantic模型
+    result = []
+    for stock in stocks:
+        result.append(schemas.Stock(
+            id=stock.id,
+            symbol=stock.symbol,
+            name=stock.name,
+            exchange=stock.exchange,
+            sector=stock.sector,
+            industry=stock.industry,
+            created_at=stock.created_at,
+            updated_at=stock.updated_at
+        ))
+    return result
+async def get_stocks(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """获取股票列表"""
+    stocks = db.query(Stock).offset(skip).limit(limit).all()
     return stocks
 
 @router.get("/{symbol}", response_model=schemas.BaseResponse)
