@@ -172,7 +172,7 @@ async def compare_stocks(
 """
         
         ai_response = ai_service.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": "你是专业的股票分析师，请提供客观的比较分析。"},
                 {"role": "user", "content": comparison_prompt}

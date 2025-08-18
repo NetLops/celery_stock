@@ -155,7 +155,7 @@ class AIAnalysisService:
                 "symbol": symbol,
                 "analysis_type": analysis_type,
                 "generated_at": datetime.now().isoformat(),
-                "model_used": "gpt-4"
+                "model_used": "gpt-4.1-mini"
             })
             
             return analysis_result
@@ -249,7 +249,7 @@ class AIAnalysisService:
 """
             
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4.1-mini",
                 messages=[
                     {"role": "system", "content": "你是一位专业的股票投资顾问，请基于提供的数据回答用户问题。"},
                     {"role": "user", "content": context_prompt}
@@ -274,7 +274,7 @@ class AIAnalysisService:
             result.update({
                 "query": query,
                 "generated_at": datetime.now().isoformat(),
-                "model_used": "gpt-4"
+                "model_used": "gpt-4.1-mini"
             })
             
             return result
