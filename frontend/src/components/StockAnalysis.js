@@ -11,19 +11,26 @@ import {
   Row,
   Col,
   Statistic,
-  Progress
+  Progress,
+  Modal,
+  Typography,
+  Divider,
+  List
 } from 'antd';
 import { SearchOutlined, FileSearchOutlined, LineChartOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 
 const { Search } = Input;
+const { Title, Paragraph, Text } = Typography;
 
 const StockAnalysis = () => {
   const [loading, setLoading] = useState(false);
   const [stockData, setStockData] = useState(null);
   const [analysisData, setAnalysisData] = useState([]);
   const [chartData, setChartData] = useState(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [currentAnalysis, setCurrentAnalysis] = useState(null);
 
   const handleSearch = async (symbol) => {
     if (!symbol) {
@@ -230,8 +237,8 @@ const StockAnalysis = () => {
         <Button 
           type="link" 
           onClick={() => {
-            // 显示详细分析内容
-            console.log('分析详情:', record.content);
+            setCurrentAnalysis(record);
+            setDetailModalVisible(true);
           }}
         >
           查看详情
@@ -342,6 +349,96 @@ const StockAnalysis = () => {
           <p style={{ marginTop: 16 }}>正在获取数据...</p>
         </div>
       )}
+
+      {/* 分析详情弹窗 */}
+      <Modal
+        title={
+          currentAnalysis ? 
+          `${currentAnalysis.analysis_type === 'technical' ? '技术分析' : 
+            currentAnalysis.analysis_type === 'fundamental' ? '基本面分析' : 
+            currentAnalysis.analysis_type === 'sentiment' ? '情绪分析' : 
+            currentAnalysis.analysis_type === 'recommendation' ? '投资建议' : 
+            '分析'} 详情` : '分析详情'
+        }
+        open={detailModalVisible}
+        onCancel={() => setDetailModalVisible(false)}
+        width={800}
+        footer={[
+          <Button key="close" onClick={() => setDetailModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+      >
+        {currentAnalysis && (
+          <div className="analysis-detail">
+            <Row gutter={[0, 16]}>
+              <Col span={24}>
+                <Card>
+                  <Statistic 
+                    title="分析类型" 
+                    value={
+                      currentAnalysis.analysis_type === 'technical' ? '技术分析' : 
+                      currentAnalysis.analysis_type === 'fundamental' ? '基本面分析' : 
+                      currentAnalysis.analysis_type === 'sentiment' ? '情绪分析' : 
+                      currentAnalysis.analysis_type === 'recommendation' ? '投资建议' : 
+                      currentAnalysis.analysis_type
+                    } 
+                  />
+                </Card>
+              </Col>
+              
+              <Col span={12}>
+                <Card>
+                  <Statistic 
+                    title="置信度" 
+                    value={`${Math.round(currentAnalysis.confidence_score * 100)}%`} 
+                    valueStyle={{ color: currentAnalysis.confidence_score > 0.7 ? '#3f8600' : 
+                                 currentAnalysis.confidence_score > 0.4 ? '#faad14' : '#cf1322' }}
+                  />
+                </Card>
+              </Col>
+              
+              <Col span={12}>
+                <Card>
+                  <Statistic 
+                    title="分析时间" 
+                    value={new Date(currentAnalysis.created_at).toLocaleString()} 
+                  />
+                </Card>
+              </Col>
+            </Row>
+            
+            <Divider orientation="left">分析内容</Divider>
+            
+            <Typography>
+              {currentAnalysis.content && typeof currentAnalysis.content === 'object' ? (
+                <div>
+                  {Object.entries(currentAnalysis.content).map(([key, value]) => (
+                    <div key={key} style={{ marginBottom: '16px' }}>
+                      <Title level={5}>{key.replace(/_/g, ' ').toUpperCase()}</Title>
+                      {typeof value === 'object' ? (
+                        <List
+                          bordered
+                          dataSource={Object.entries(value)}
+                          renderItem={([subKey, subValue]) => (
+                            <List.Item>
+                              <Text strong>{subKey.replace(/_/g, ' ')}:</Text> {subValue}
+                            </List.Item>
+                          )}
+                        />
+                      ) : (
+                        <Paragraph>{value}</Paragraph>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Paragraph>{currentAnalysis.content || '无详细内容'}</Paragraph>
+              )}
+            </Typography>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
