@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, Decimal, Text, Boolean, Date, BigInteger, ARRAY
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Date, BigInteger, ARRAY
+from decimal import Decimal
+from sqlalchemy.types import DECIMAL
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -28,12 +30,12 @@ class StockPrice(Base):
     id = Column(Integer, primary_key=True, index=True)
     stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
     date = Column(Date, nullable=False)
-    open_price = Column(Decimal(10, 4))
-    high_price = Column(Decimal(10, 4))
-    low_price = Column(Decimal(10, 4))
-    close_price = Column(Decimal(10, 4))
+    open_price = Column(DECIMAL(10, 4))
+    high_price = Column(DECIMAL(10, 4))
+    low_price = Column(DECIMAL(10, 4))
+    close_price = Column(DECIMAL(10, 4))
     volume = Column(BigInteger)
-    adj_close = Column(Decimal(10, 4))
+    adj_close = Column(DECIMAL(10, 4))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # 关联关系
@@ -46,7 +48,7 @@ class AIAnalysis(Base):
     stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
     analysis_type = Column(String(50), nullable=False)  # 'technical', 'fundamental', 'sentiment', 'recommendation'
     analysis_content = Column(JSONB, nullable=False)
-    confidence_score = Column(Decimal(3, 2))  # 0.00 to 1.00
+    confidence_score = Column(DECIMAL(3, 2))  # 0.00 to 1.00
     tags = Column(ARRAY(Text))  # 用于分类标识
     prompt_template = Column(String(500))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -86,11 +88,11 @@ class StockRecommendation(Base):
     id = Column(Integer, primary_key=True, index=True)
     stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
     recommendation_type = Column(String(50))  # 'buy', 'sell', 'hold'
-    score = Column(Decimal(3, 2))  # 推荐评分 0.00-1.00
+    score = Column(DECIMAL(3, 2))  # 推荐评分 0.00-1.00
     reasoning = Column(Text)
     risk_level = Column(String(20))  # 'low', 'medium', 'high'
-    target_price = Column(Decimal(10, 4))
-    stop_loss = Column(Decimal(10, 4))
+    target_price = Column(DECIMAL(10, 4))
+    stop_loss = Column(DECIMAL(10, 4))
     time_horizon = Column(String(20))  # 'short', 'medium', 'long'
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True))
