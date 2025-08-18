@@ -1,0 +1,188 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 自定义样式 */
+.main-layout {
+  min-height: 100vh;
+}
+
+.site-layout-content {
+  min-height: 280px;
+  padding: 24px;
+  background: #fff;
+}
+
+.logo {
+  float: left;
+  width: 120px;
+  height: 31px;
+  margin: 16px 24px 16px 0;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.ant-row-rtl .logo {
+  float: right;
+  margin: 16px 0 16px 24px;
+}
+
+/* 股票分析页面样式 */
+.stock-analysis-container {
+  padding: 20px;
+}
+
+.analysis-card {
+  margin-bottom: 16px;
+}
+
+.chart-container {
+  height: 400px;
+  margin: 20px 0;
+}
+
+/* 推荐系统样式 */
+.recommendation-item {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.3s;
+}
+
+.recommendation-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.score-badge {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* AI聊天样式 */
+.chat-container {
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.message {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  max-width: 80%;
+}
+
+.message.user {
+  background: #1890ff;
+  color: white;
+  margin-left: auto;
+  text-align: right;
+}
+
+.message.assistant {
+  background: white;
+  border: 1px solid #d9d9d9;
+}
+
+/* 批量任务样式 */
+.task-item {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.task-status {
+  font-weight: bold;
+}
+
+.task-status.pending {
+  color: #faad14;
+}
+
+.task-status.running {
+  color: #1890ff;
+}
+
+.task-status.completed {
+  color: #52c41a;
+}
+
+.task-status.failed {
+  color: #ff4d4f;
+}
+
+/* 仪表板样式 */
+.dashboard-card {
+  margin-bottom: 16px;
+}
+
+.metric-card {
+  text-align: center;
+  padding: 20px;
+}
+
+.metric-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1890ff;
+}
+
+.metric-label {
+  color: #666;
+  margin-top: 8px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .site-layout-content {
+    padding: 12px;
+  }
+  
+  .chart-container {
+    height: 300px;
+  }
+  
+  .message {
+    max-width: 95%;
+  }
+}
