@@ -172,7 +172,8 @@ class AIAnalysisService:
                     temperature=0.3,
                     max_tokens=1500
                 )
-                
+                logger.info(f"调试 ai 响应: {response}")
+
                 # 解析AI响应
                 ai_response = response.choices[0].message.content
             except Exception as e:
