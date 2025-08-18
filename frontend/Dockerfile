@@ -2,6 +2,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# 配置npm国内源
+RUN npm config set registry https://registry.npmmirror.com
+
 # 复制package文件
 COPY package*.json ./
 

@@ -2,6 +2,20 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# 配置国内源
+#RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+#     sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+#  RUN echo "deb http://mirrors.aliyun.com/debian $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2) main contrib non-free" > /etc/apt/sources.list \
+#  && echo "deb http://mirrors.aliyun.com/debian-security $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)-security main contrib non-free" >> /etc/apt/sources.list \
+#  && echo "deb http://mirrors.aliyun.com/debian $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)-updates main contrib non-free" >> /etc/apt/sources.list
+
+# 覆盖 sources.list 为清华镜像
+RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ trixie main contrib non-free non-free-firmware" > /etc/apt/sources.list \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ trixie-updates main contrib non-free non-free-firmware" > /etc/apt/sources.list \
+    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ trixie-backports main contrib non-free non-free-firmware" > /etc/apt/sources.list \
+    echo "deb https://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware" > /etc/apt/sources.lisa
+
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \
     gcc \
@@ -11,8 +25,10 @@ RUN apt-get update && apt-get install -y \
 # 复制依赖文件
 COPY requirements.txt .
 
-# 安装Python依赖
-RUN pip install --no-cache-dir -r requirements.txt
+# 配置pip国内源并安装Python依赖
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
 COPY . .
