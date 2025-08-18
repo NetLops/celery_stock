@@ -12,8 +12,8 @@ import {
 } from 'antd';
 import { 
   StockOutlined, 
-  AnalysisOutlined, 
-  TasksOutlined,
+  LineChartOutlined, 
+  AppstoreAddOutlined,
   TrophyOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined
@@ -210,7 +210,7 @@ const Dashboard = () => {
             <Statistic
               title="分析次数"
               value={dashboardData.stats.analysisCount}
-              prefix={<AnalysisOutlined />}
+              prefix={<LineChartOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
           </Card>
@@ -220,7 +220,7 @@ const Dashboard = () => {
             <Statistic
               title="活跃任务"
               value={dashboardData.stats.activeTasks}
-              prefix={<TasksOutlined />}
+              prefix={<AppstoreAddOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
           </Card>

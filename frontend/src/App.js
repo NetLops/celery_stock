@@ -4,7 +4,7 @@ import { Layout, Menu, Typography } from 'antd';
 import { 
   DashboardOutlined, 
   StockOutlined, 
-  AnalysisOutlined, 
+  CommentOutlined, 
   StarOutlined,
   AppstoreAddOutlined 
 } from '@ant-design/icons';
@@ -44,7 +44,7 @@ function App() {
     },
     {
       key: '/chat',
-      icon: <AnalysisOutlined />,
+      icon: <CommentOutlined />,
       label: 'AI助手',
     },
   ];

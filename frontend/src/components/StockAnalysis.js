@@ -13,7 +13,7 @@ import {
   Statistic,
   Progress
 } from 'antd';
-import { SearchOutlined, AnalysisOutlined, LineChartOutlined } from '@ant-design/icons';
+import { SearchOutlined, FileSearchOutlined, LineChartOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 
@@ -296,7 +296,7 @@ const StockAnalysis = () => {
             <Space>
               <Button 
                 type="primary" 
-                icon={<AnalysisOutlined />}
+                icon={<FileSearchOutlined />}
                 onClick={() => handleAnalyze(stockData.stock_info.symbol)}
                 loading={loading}
               >
