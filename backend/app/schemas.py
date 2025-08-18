@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -116,10 +116,10 @@ class UserQueryRequest(BaseModel):
     session_id: Optional[str] = Field(None, description="会话ID")
 
 class UserQueryResponse(BaseModel):
-    analysis: Optional[Dict[str, Any]] = Field(None, description="分析结果")
-    chart_data: Optional[Dict[str, Any]] = Field(None, description="K线图数据")
+    analysis: Optional[Union[Dict[str, Any], str]] = Field(None, description="分析结果")
+    chart_data: Optional[Union[Dict[str, Any], str]] = Field(None, description="K线图数据")
     recommendations: Optional[List[Dict[str, Any]]] = Field(None, description="推荐信息")
-    reference_urls: Optional[List[str]] = Field(None, description="参考链接")
+    reference_urls: Optional[Union[List[str], Any]] = Field(None, description="参考链接")
 
 # 股票查询请求
 class StockAnalysisRequest(BaseModel):

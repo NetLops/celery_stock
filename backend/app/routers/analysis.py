@@ -65,6 +65,8 @@ async def handle_user_query(
         
         # 使用AI回答用户问题
         ai_response = ai_service.answer_user_query(request.message, context_data)
+
+        logger.info(f"build response: {ai_response}")
         
         # 构建响应数据
         response_data = schemas.UserQueryResponse(
