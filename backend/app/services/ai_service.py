@@ -1,5 +1,6 @@
 import openai
 import json
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import logging
@@ -13,6 +14,29 @@ class AIAnalysisService:
     def __init__(self):
         self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="https://api.gpt.ge/v1")
         self.prompts = self._load_prompts()
+    
+    def _parse_json_from_response(self, response_text: str) -> Dict[str, Any]:
+        """
+        从模型响应中解析JSON，处理可能的Markdown代码块标记
+        """
+        # 去除可能的Markdown代码块标记
+        cleaned_text = response_text.strip()
+        
+        # 使用正则表达式移除开头的```json或```标记和结尾的```标记
+        cleaned_text = re.sub(r'^```json\s*', '', cleaned_text)
+        cleaned_text = re.sub(r'^```\s*', '', cleaned_text)
+        cleaned_text = re.sub(r'\s*```$', '', cleaned_text)
+        
+        # 清理文本并解析JSON
+        cleaned_text = cleaned_text.strip()
+        
+        try:
+            return json.loads(cleaned_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON解析错误: {e}")
+            logger.debug(f"清理后的文本: {cleaned_text}")
+            # 返回原始文本作为备用
+            return {"raw_text": cleaned_text}
     
     def _load_prompts(self) -> Dict[str, str]:
         """加载分析提示词模板"""
@@ -42,6 +66,9 @@ class AIAnalysisService:
 - short_term_outlook: 文字描述
 - risk_factors: [风险因素列表]
 - confidence: 0-1之间的置信度
+
+重要：请直接返回JSON格式的响应，不要添加任何Markdown格式标记（如 ```json 或 ```）。
+只返回原始JSON数据，没有任何其他文本或格式。
 """,
             
             "fundamental": """
@@ -69,6 +96,9 @@ class AIAnalysisService:
 - risk_factors: [风险因素列表]
 - long_term_outlook: 长期前景描述
 - confidence: 0-1之间的置信度
+
+重要：请直接返回JSON格式的响应，不要添加任何Markdown格式标记（如 ```json 或 ```）。
+只返回原始JSON数据，没有任何其他文本或格式。
 """,
             
             "sentiment": """
@@ -90,6 +120,9 @@ class AIAnalysisService:
 - key_drivers: [影响情绪的关键因素]
 - potential_catalysts: [可能的催化剂]
 - recommendation: 基于情绪的操作建议
+
+重要：请直接返回JSON格式的响应，不要添加任何Markdown格式标记（如 ```json 或 ```）。
+只返回原始JSON数据，没有任何其他文本或格式。
 """,
             
             "recommendation": """
@@ -115,6 +148,9 @@ class AIAnalysisService:
 - action_plan: 具体操作建议
 - stop_loss: 建议止损价格
 - confidence: 0-1之间的置信度
+
+重要：请直接返回JSON格式的响应，不要添加任何Markdown格式标记（如 ```json 或 ```）。
+只返回原始JSON数据，没有任何其他文本或格式。
 """
         }
     
@@ -130,7 +166,7 @@ class AIAnalysisService:
                 response = self.client.chat.completions.create(
                     model="gpt-4.1-mini",
                     messages=[
-                        {"role": "system", "content": "你是一位专业的股票分析师，请提供准确、客观的分析建议。"},
+                        {"role": "system", "content": "你是一位专业的股票分析师，请提供准确、客观的分析建议。请直接返回JSON格式的响应，不要添加任何Markdown格式标记。"},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.3,
@@ -151,12 +187,16 @@ class AIAnalysisService:
             try:
                 analysis_result = json.loads(ai_response)
             except json.JSONDecodeError:
-                # 如果不是JSON格式，包装成标准格式
-                analysis_result = {
-                    "raw_analysis": ai_response,
-                    "analysis_type": analysis_type,
-                    "confidence": 0.7
-                }
+                # 尝试清理并解析JSON
+                analysis_result = self._parse_json_from_response(ai_response)
+                
+                # 如果仍然无法解析为JSON，包装成标准格式
+                if "raw_text" in analysis_result:
+                    analysis_result = {
+                        "raw_analysis": analysis_result["raw_text"],
+                        "analysis_type": analysis_type,
+                        "confidence": 0.7
+                    }
             
             # 添加元数据
             analysis_result.update({
@@ -254,13 +294,16 @@ class AIAnalysisService:
 - recommendations: 推荐列表（列表的元素里包含 "symbol"、"action"、"rationale" 三个字段的信息）
 - chart_suggestions: K线图建议
 - references: 参考信息
+
+重要：请直接返回JSON格式的响应，不要添加任何Markdown格式标记（如 ```json 或 ```）。
+只返回原始JSON数据，没有任何其他文本或格式。
 """
             
             try:
                 response = self.client.chat.completions.create(
                     model="gpt-4.1-mini",
                     messages=[
-                        {"role": "system", "content": "你是一位专业的股票投资顾问，请基于提供的数据回答用户问题。"},
+                        {"role": "system", "content": "你是一位专业的股票投资顾问，请基于提供的数据回答用户问题。请直接返回JSON格式的响应，不要添加任何Markdown格式标记。"},
                         {"role": "user", "content": context_prompt}
                     ],
                     temperature=0.4,
@@ -280,13 +323,18 @@ class AIAnalysisService:
             try:
                 result = json.loads(ai_response)
             except json.JSONDecodeError:
-                result = {
-                    "answer": ai_response,
-                    "analysis": {},
-                    "recommendations": [],
-                    "chart_suggestions": {},
-                    "references": []
-                }
+                # 尝试清理并解析JSON
+                result = self._parse_json_from_response(ai_response)
+                
+                # 如果仍然无法解析为JSON，使用默认结构
+                if "raw_text" in result:
+                    result = {
+                        "answer": result["raw_text"],
+                        "analysis": {},
+                        "recommendations": [],
+                        "chart_suggestions": {},
+                        "references": []
+                    }
             
             result.update({
                 "query": query,

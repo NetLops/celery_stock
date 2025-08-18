@@ -205,17 +205,28 @@ const AIChat = () => {
               </div>
             )}
 
-            {/* {msg.references && msg.references.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <Divider style={{ margin: '8px 0' }}>参考链接</Divider>
-                {msg.references.map((ref, index) => (
-                  <div key={index}>
-                    <a href={ref} target="_blank" rel="noopener noreferrer">
-                      {ref}
-                    </a>
+            {/* {msg.references && (
+              Array.isArray(msg.references) ? (
+                msg.references.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <Divider style={{ margin: '8px 0' }}>参考链接</Divider>
+                    {msg.references.map((ref, index) => (
+                      <div key={index}>
+                        <a href={ref} target="_blank" rel="noopener noreferrer">
+                          {ref}
+                        </a>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )
+              ) : (
+                <div style={{ marginTop: 12 }}>
+                  <Divider style={{ margin: '8px 0' }}>参考链接</Divider>
+                  <div>
+                    {msg.references}
+                  </div>
+                </div>
+              )
             )} */}
 
             {msg.suggestions && (
