@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15
+    container_name: stock_postgres
+    environment:
+      POSTGRES_DB: stock_analysis
+      POSTGRES_USER: stock_user
+      POSTGRES_PASSWORD: stock_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - stock_network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: stock_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - stock_network
+
+  # 后端 API 服务
+  backend:
+    build: ./backend
+    container_name: stock_backend
+    environment:
+      - DATABASE_URL=postgresql://stock_user:stock_pass@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+    networks:
+      - stock_network
+
+  # Celery Worker 异步任务处理
+  celery_worker:
+    build: ./backend
+    container_name: stock_celery_worker
+    command: celery -A app.celery worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://stock_user:stock_pass@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+    networks:
+      - stock_network
+
+  # Celery Beat 定时任务调度
+  celery_beat:
+    build: ./backend
+    container_name: stock_celery_beat
+    command: celery -A app.celery beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://stock_user:stock_pass@postgres:5432/stock_analysis
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+    networks:
+      - stock_network
+
+  # 前端服务
+  frontend:
+    build: ./frontend
+    container_name: stock_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - stock_network
+
+volumes:
+  postgres_data:
+
+networks:
+  stock_network:
+    driver: bridge
