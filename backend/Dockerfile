@@ -6,15 +6,9 @@ WORKDIR /app
 #RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
 #     sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
 
-#  RUN echo "deb http://mirrors.aliyun.com/debian $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2) main contrib non-free" > /etc/apt/sources.list \
-#  && echo "deb http://mirrors.aliyun.com/debian-security $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)-security main contrib non-free" >> /etc/apt/sources.list \
-#  && echo "deb http://mirrors.aliyun.com/debian $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)-updates main contrib non-free" >> /etc/apt/sources.list
-
-# 覆盖 sources.list 为清华镜像
-RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ trixie main contrib non-free non-free-firmware" > /etc/apt/sources.list \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ trixie-updates main contrib non-free non-free-firmware" > /etc/apt/sources.list \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ trixie-backports main contrib non-free non-free-firmware" > /etc/apt/sources.list \
-    echo "deb https://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware" > /etc/apt/sources.lisa
+ RUN echo "deb http://mirrors.aliyun.com/debian $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2) main contrib non-free" > /etc/apt/sources.list \
+ && echo "deb http://mirrors.aliyun.com/debian-security $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)-security main contrib non-free" >> /etc/apt/sources.list \
+ && echo "deb http://mirrors.aliyun.com/debian $(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)-updates main contrib non-free" >> /etc/apt/sources.list
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \
