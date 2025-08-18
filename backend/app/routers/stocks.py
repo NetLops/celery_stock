@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
-from ..schemas import *
+from .. import schemas
 from ..services.stock_service import StockDataService
 from ..services.ai_service import AIAnalysisService
 from ..models import Stock, AIAnalysis
@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/", response_model=List[Stock])
+@router.get("/", response_model=List[schemas.Stock])
 async def get_stocks(
     skip: int = 0,
     limit: int = 100,
@@ -22,7 +22,7 @@ async def get_stocks(
     stocks = db.query(Stock).offset(skip).limit(limit).all()
     return stocks
 
-@router.get("/{symbol}", response_model=BaseResponse)
+@router.get("/{symbol}", response_model=schemas.BaseResponse)
 async def get_stock_info(symbol: str, db: Session = Depends(get_db)):
     """获取单个股票信息"""
     try:
@@ -52,7 +52,7 @@ async def get_stock_info(symbol: str, db: Session = Depends(get_db)):
         # 获取最新价格数据
         chart_data = stock_service.get_chart_data(symbol.upper(), "1y")
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             data={
                 "stock_info": {
                     "id": stock.id,
@@ -70,9 +70,9 @@ async def get_stock_info(symbol: str, db: Session = Depends(get_db)):
         logger.error(f"获取股票信息失败 {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/analyze", response_model=BaseResponse)
+@router.post("/analyze", response_model=schemas.BaseResponse)
 async def analyze_stock(
-    request: StockAnalysisRequest,
+    request: schemas.StockAnalysisRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
@@ -89,7 +89,7 @@ async def analyze_stock(
             ).first()
             
             if recent_analysis:
-                return BaseResponse(
+                return schemas.BaseResponse(
                     message="返回缓存的分析结果",
                     data=recent_analysis.analysis_content
                 )
@@ -102,7 +102,7 @@ async def analyze_stock(
             db
         )
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             message="分析任务已提交，请稍后查询结果",
             data={"symbol": symbol, "status": "processing"}
         )
@@ -111,7 +111,7 @@ async def analyze_stock(
         logger.error(f"提交分析任务失败 {request.symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{symbol}/analysis", response_model=BaseResponse)
+@router.get("/{symbol}/analysis", response_model=schemas.BaseResponse)
 async def get_stock_analysis(
     symbol: str,
     analysis_type: Optional[str] = None,
@@ -140,13 +140,13 @@ async def get_stock_analysis(
                 "created_at": analysis.created_at.isoformat()
             })
         
-        return BaseResponse(data=result)
+        return schemas.BaseResponse(data=result)
         
     except Exception as e:
         logger.error(f"获取分析结果失败 {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{symbol}/chart", response_model=BaseResponse)
+@router.get("/{symbol}/chart", response_model=schemas.BaseResponse)
 async def get_stock_chart(
     symbol: str,
     period: str = "1y"
@@ -159,7 +159,7 @@ async def get_stock_chart(
         if not chart_data:
             raise HTTPException(status_code=404, detail="无法获取图表数据")
         
-        return BaseResponse(data=chart_data)
+        return schemas.BaseResponse(data=chart_data)
         
     except Exception as e:
         logger.error(f"获取图表数据失败 {symbol}: {e}")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
-from ..schemas import *
+from .. import schemas
 from ..models import AnalysisTask
 from ..tasks import analyze_batch_stocks, scan_market_opportunities
 from datetime import datetime
@@ -12,9 +12,9 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.post("/batch-analysis", response_model=BaseResponse)
+@router.post("/batch-analysis", response_model=schemas.BaseResponse)
 async def create_batch_analysis_task(
-    request: BatchAnalysisRequest,
+    request: schemas.BatchAnalysisRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
@@ -45,7 +45,7 @@ async def create_batch_analysis_task(
             request.priority
         )
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             message="批量分析任务已创建",
             data={
                 "task_id": task_id,
@@ -58,7 +58,7 @@ async def create_batch_analysis_task(
         logger.error(f"创建批量分析任务失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/market-scan", response_model=BaseResponse)
+@router.post("/market-scan", response_model=schemas.BaseResponse)
 async def create_market_scan_task(
     background_tasks: BackgroundTasks,
     sector: Optional[str] = None,
@@ -88,7 +88,7 @@ async def create_market_scan_task(
             market_cap_min
         )
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             message="市场扫描任务已创建",
             data={
                 "task_id": task_id,
@@ -104,7 +104,7 @@ async def create_market_scan_task(
         logger.error(f"创建市场扫描任务失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{task_id}", response_model=BaseResponse)
+@router.get("/{task_id}", response_model=schemas.BaseResponse)
 async def get_task_status(task_id: str, db: Session = Depends(get_db)):
     """获取任务状态"""
     try:
@@ -113,7 +113,7 @@ async def get_task_status(task_id: str, db: Session = Depends(get_db)):
         if not task:
             raise HTTPException(status_code=404, detail="任务不存在")
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             data={
                 "task_id": task.task_id,
                 "task_type": task.task_type,
@@ -132,7 +132,7 @@ async def get_task_status(task_id: str, db: Session = Depends(get_db)):
         logger.error(f"获取任务状态失败 {task_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=BaseResponse)
+@router.get("/", response_model=schemas.BaseResponse)
 async def get_tasks(
     status: Optional[str] = None,
     task_type: Optional[str] = None,
@@ -163,13 +163,13 @@ async def get_tasks(
                 "completed_at": task.completed_at.isoformat() if task.completed_at else None
             })
         
-        return BaseResponse(data=result)
+        return schemas.BaseResponse(data=result)
         
     except Exception as e:
         logger.error(f"获取任务列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{task_id}", response_model=BaseResponse)
+@router.delete("/{task_id}", response_model=schemas.BaseResponse)
 async def cancel_task(task_id: str, db: Session = Depends(get_db)):
     """取消任务"""
     try:
@@ -188,7 +188,7 @@ async def cancel_task(task_id: str, db: Session = Depends(get_db)):
         
         # TODO: 实际取消Celery任务
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             message="任务已取消",
             data={"task_id": task_id, "status": "cancelled"}
         )

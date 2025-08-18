@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from sqlalchemy import func
+from datetime import datetime
 from ..database import get_db
-from ..schemas import *
+from .. import schemas
 from ..services.recommendation_service import RecommendationService
 from ..models import StockRecommendation, Stock
 import logging
@@ -10,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/", response_model=BaseResponse)
+@router.get("/", response_model=schemas.BaseResponse)
 async def get_recommendations(
     min_score: float = 0.6,
     risk_levels: Optional[str] = None,
@@ -32,7 +34,7 @@ async def get_recommendations(
             limit=limit
         )
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             data={
                 "recommendations": recommendations,
                 "criteria": {
@@ -48,7 +50,7 @@ async def get_recommendations(
         logger.error(f"获取推荐列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/potential", response_model=BaseResponse)
+@router.get("/potential", response_model=schemas.BaseResponse)
 async def get_potential_stocks(
     limit: int = 10,
     db: Session = Depends(get_db)
@@ -58,7 +60,7 @@ async def get_potential_stocks(
         recommendation_service = RecommendationService()
         potential_stocks = recommendation_service.find_potential_stocks(limit=limit)
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             message=f"找到 {len(potential_stocks)} 只潜力股票",
             data={
                 "potential_stocks": potential_stocks,
@@ -70,7 +72,7 @@ async def get_potential_stocks(
         logger.error(f"获取潜力股票失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{symbol}/score", response_model=BaseResponse)
+@router.get("/{symbol}/score", response_model=schemas.BaseResponse)
 async def get_stock_score(symbol: str, db: Session = Depends(get_db)):
     """获取单个股票的综合评分"""
     try:
@@ -80,13 +82,13 @@ async def get_stock_score(symbol: str, db: Session = Depends(get_db)):
         if "error" in score_data:
             raise HTTPException(status_code=404, detail=score_data["error"])
         
-        return BaseResponse(data=score_data)
+        return schemas.BaseResponse(data=score_data)
         
     except Exception as e:
         logger.error(f"获取股票评分失败 {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/{symbol}/generate", response_model=BaseResponse)
+@router.post("/{symbol}/generate", response_model=schemas.BaseResponse)
 async def generate_recommendation(symbol: str, db: Session = Depends(get_db)):
     """为指定股票生成推荐"""
     try:
@@ -104,7 +106,7 @@ async def generate_recommendation(symbol: str, db: Session = Depends(get_db)):
         if not success:
             raise HTTPException(status_code=500, detail="保存推荐失败")
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             message="推荐已生成并保存",
             data=score_data
         )
@@ -113,7 +115,7 @@ async def generate_recommendation(symbol: str, db: Session = Depends(get_db)):
         logger.error(f"生成推荐失败 {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/sectors/analysis", response_model=BaseResponse)
+@router.get("/sectors/analysis", response_model=schemas.BaseResponse)
 async def get_sector_analysis(db: Session = Depends(get_db)):
     """获取行业板块分析"""
     try:
@@ -139,7 +141,7 @@ async def get_sector_analysis(db: Session = Depends(get_db)):
         # 按平均评分排序
         sector_analysis.sort(key=lambda x: x["average_score"], reverse=True)
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             data={
                 "sector_analysis": sector_analysis,
                 "total_sectors": len(sector_analysis),
@@ -151,7 +153,7 @@ async def get_sector_analysis(db: Session = Depends(get_db)):
         logger.error(f"获取行业分析失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/risk/analysis", response_model=BaseResponse)
+@router.get("/risk/analysis", response_model=schemas.BaseResponse)
 async def get_risk_analysis(db: Session = Depends(get_db)):
     """获取风险分析报告"""
     try:
@@ -186,7 +188,7 @@ async def get_risk_analysis(db: Session = Depends(get_db)):
             for rec_type, count in recommendation_stats
         ]
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             data={
                 "risk_analysis": risk_analysis,
                 "recommendation_distribution": recommendation_distribution,

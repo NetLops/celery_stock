@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 from ..database import get_db
-from ..schemas import *
+from .. import schemas
 from ..services.ai_service import AIAnalysisService
 from ..services.stock_service import StockDataService
 from ..models import Stock, AIAnalysis, UserQuery
@@ -13,9 +13,9 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.post("/query", response_model=BaseResponse)
+@router.post("/query", response_model=schemas.BaseResponse)
 async def handle_user_query(
-    request: UserQueryRequest,
+    request: schemas.UserQueryRequest,
     db: Session = Depends(get_db)
 ):
     """处理用户查询"""
@@ -67,7 +67,7 @@ async def handle_user_query(
         ai_response = ai_service.answer_user_query(request.message, context_data)
         
         # 构建响应数据
-        response_data = UserQueryResponse(
+        response_data = schemas.UserQueryResponse(
             analysis=ai_response.get("analysis", {}),
             chart_data=ai_response.get("chart_suggestions", {}),
             recommendations=ai_response.get("recommendations", []),
@@ -84,7 +84,7 @@ async def handle_user_query(
         db.add(user_query)
         db.commit()
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             data={
                 "session_id": session_id,
                 "answer": ai_response.get("answer", ""),
@@ -97,7 +97,7 @@ async def handle_user_query(
         logger.error(f"处理用户查询失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/history/{session_id}", response_model=BaseResponse)
+@router.get("/history/{session_id}", response_model=schemas.BaseResponse)
 async def get_query_history(
     session_id: str,
     limit: int = 10,
@@ -118,13 +118,13 @@ async def get_query_history(
                 "created_at": query.created_at.isoformat()
             })
         
-        return BaseResponse(data=history)
+        return schemas.BaseResponse(data=history)
         
     except Exception as e:
         logger.error(f"获取查询历史失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/compare", response_model=BaseResponse)
+@router.post("/compare", response_model=schemas.BaseResponse)
 async def compare_stocks(
     symbols: List[str],
     db: Session = Depends(get_db)
@@ -185,7 +185,7 @@ async def compare_stocks(
         except:
             comparison_result = {"analysis": ai_response.choices[0].message.content}
         
-        return BaseResponse(
+        return schemas.BaseResponse(
             data={
                 "symbols": symbols,
                 "comparison_data": comparison_data,
