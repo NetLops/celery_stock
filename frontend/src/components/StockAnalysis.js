@@ -17,9 +17,10 @@ import {
   Divider,
   List,
   Select,
-  AutoComplete
+  AutoComplete,
+  Tooltip
 } from 'antd';
-import { SearchOutlined, FileSearchOutlined, LineChartOutlined } from '@ant-design/icons';
+import { SearchOutlined, FileSearchOutlined, LineChartOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 
@@ -38,6 +39,9 @@ const StockAnalysis = () => {
   const [searchValue, setSearchValue] = useState('');
   const [stockOptions, setStockOptions] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [mappingModalVisible, setMappingModalVisible] = useState(false);
+  const [mappingData, setMappingData] = useState({});
+  const [mappingLoading, setMappingLoading] = useState(false);
 
   const handleSearch = async (symbol) => {
     if (!symbol) {
@@ -136,6 +140,24 @@ const StockAnalysis = () => {
     } else if (value) {
       handleSearch(value);
     }
+  };
+
+  const loadStockNameMapping = async () => {
+    setMappingLoading(true);
+    try {
+      const response = await axios.get('/api/v1/stocks/mapping');
+      setMappingData(response.data.data || {});
+    } catch (error) {
+      console.error('获取股票名称映射失败:', error);
+      message.error('获取股票名称映射失败');
+    } finally {
+      setMappingLoading(false);
+    }
+  };
+
+  const showMappingModal = () => {
+    setMappingModalVisible(true);
+    loadStockNameMapping();
   };
 
   const getChartOption = () => {
@@ -304,9 +326,47 @@ const StockAnalysis = () => {
     }
   ];
 
+  const mappingColumns = [
+    {
+      title: '中文名称',
+      dataIndex: 'chinese_name',
+      key: 'chinese_name',
+    },
+    {
+      title: '英文名称',
+      dataIndex: 'english_name',
+      key: 'english_name',
+    },
+    {
+      title: '股票代码',
+      dataIndex: 'symbol',
+      key: 'symbol',
+    }
+  ];
+
+  // 将映射数据转换为表格数据
+  const getMappingTableData = () => {
+    return Object.entries(mappingData).map(([chinese, data], index) => ({
+      key: index,
+      chinese_name: chinese,
+      english_name: data.en_name,
+      symbol: data.symbol
+    }));
+  };
+
   return (
     <div>
-      <Card title="股票分析" style={{ marginBottom: 24 }}>
+      <Card title="股票分析" style={{ marginBottom: 24 }} extra={
+        <Tooltip title="查看股票名称映射表">
+          <Button 
+            type="text" 
+            icon={<InfoCircleOutlined />} 
+            onClick={showMappingModal}
+          >
+            股票名称映射表
+          </Button>
+        </Tooltip>
+      }>
         <Space direction="vertical" style={{ width: '100%' }}>
           <Input.Group compact>
             <Select 
@@ -535,6 +595,30 @@ const StockAnalysis = () => {
             </Typography>
           </div>
         )}
+      </Modal>
+
+      {/* 股票名称映射表弹窗 */}
+      <Modal
+        title="股票名称映射表"
+        open={mappingModalVisible}
+        onCancel={() => setMappingModalVisible(false)}
+        width={800}
+        footer={[
+          <Button key="close" onClick={() => setMappingModalVisible(false)}>
+            关闭
+          </Button>
+        ]}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text>此表提供了常见股票的中英文名称映射，方便通过中文名称查找股票代码。</Text>
+        </div>
+        <Table
+          columns={mappingColumns}
+          dataSource={getMappingTableData()}
+          loading={mappingLoading}
+          pagination={{ pageSize: 10 }}
+          size="small"
+        />
       </Modal>
     </div>
   );

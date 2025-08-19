@@ -8,6 +8,7 @@ from ..models import Stock, StockPrice
 from ..database import SessionLocal
 import logging
 import re
+from .stock_mapping_service import StockMappingService
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class StockDataService:
     
     def __init__(self):
         self.session = SessionLocal()
+        self.mapping_service = StockMappingService()
     
     def get_stock_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """获取股票基本信息"""
@@ -203,7 +205,32 @@ class StockDataService:
             匹配的股票列表，每个元素包含 symbol 和 name
         """
         try:
-            # 首先在数据库中查找
+            results = []
+            
+            # 1. 首先检查是否是中文名称，如果是，尝试使用映射服务
+            if re.search(r'[\u4e00-\u9fff]', name):
+                # 直接查找完全匹配
+                symbol = self.mapping_service.get_symbol(name)
+                if symbol:
+                    stock_info = self.get_stock_info(symbol)
+                    if stock_info:
+                        results.append({
+                            "symbol": symbol,
+                            "name": stock_info.get("name", name),
+                            "exchange": stock_info.get("exchange", "")
+                        })
+                
+                # 查找部分匹配
+                mapping_results = self.mapping_service.search_by_chinese_name(name)
+                for item in mapping_results:
+                    if not any(r["symbol"] == item["symbol"] for r in results):
+                        results.append({
+                            "symbol": item["symbol"],
+                            "name": item["english_name"],
+                            "exchange": ""  # 可以通过 yfinance 获取，但为了性能这里先不获取
+                        })
+            
+            # 2. 在数据库中查找
             query = self.session.query(Stock)
             
             # 如果输入是中文，尝试模糊匹配名称
@@ -213,41 +240,65 @@ class StockDataService:
                 # 英文名称可能是部分匹配
                 stocks = query.filter(Stock.name.ilike(f"%{name}%")).all()
             
-            results = []
             for stock in stocks:
-                results.append({
-                    "symbol": stock.symbol,
-                    "name": stock.name,
-                    "exchange": stock.exchange
-                })
+                if not any(r["symbol"] == stock.symbol for r in results):
+                    results.append({
+                        "symbol": stock.symbol,
+                        "name": stock.name,
+                        "exchange": stock.exchange
+                    })
             
-            # 如果数据库中没有找到，尝试使用 yfinance 搜索
-            if not results:
-                # 这里我们可以使用 yfinance 的搜索功能，但它不直接支持名称搜索
-                # 所以我们可以尝试一些常见的股票代码格式
+            # 3. 如果数据库中没有找到，尝试使用 yfinance 搜索
+            if not results and not re.search(r'[\u4e00-\u9fff]', name):
+                # 对于英文名称，尝试直接使用名称的首字母缩写
+                words = name.split()
+                if len(words) > 1:
+                    acronym = ''.join(word[0].upper() for word in words if word)
+                    try:
+                        ticker = yf.Ticker(acronym)
+                        info = ticker.info
+                        if info and 'longName' in info:
+                            results.append({
+                                "symbol": acronym,
+                                "name": info.get("longName", ""),
+                                "exchange": info.get("exchange", "")
+                            })
+                    except:
+                        pass
                 
-                # 对于美股，尝试直接使用名称的首字母缩写
-                if not re.search(r'[\u4e00-\u9fff]', name):
-                    possible_symbols = []
-                    
-                    # 尝试首字母缩写
-                    words = name.split()
-                    if len(words) > 1:
-                        acronym = ''.join(word[0].upper() for word in words if word)
-                        possible_symbols.append(acronym)
-                    
-                    # 尝试完整名称的前几个字母
-                    name_no_space = ''.join(name.split()).upper()
-                    if len(name_no_space) >= 2:
-                        possible_symbols.append(name_no_space[:4])
-                    
+                # 尝试使用名称的前几个字母
+                name_no_space = ''.join(name.split()).upper()
+                if len(name_no_space) >= 2:
+                    possible_symbols = [name_no_space[:i] for i in range(2, min(5, len(name_no_space) + 1))]
                     for symbol in possible_symbols:
                         try:
                             ticker = yf.Ticker(symbol)
                             info = ticker.info
                             if info and 'longName' in info:
+                                if not any(r["symbol"] == symbol for r in results):
+                                    results.append({
+                                        "symbol": symbol,
+                                        "name": info.get("longName", ""),
+                                        "exchange": info.get("exchange", "")
+                                    })
+                        except:
+                            pass
+            
+            # 4. 如果是中文名称但没有找到匹配，尝试将中文转为英文再搜索
+            if not results and re.search(r'[\u4e00-\u9fff]', name):
+                # 这里可以集成翻译服务，但为简单起见，我们只使用映射表中的英文名称
+                en_name = self.mapping_service.get_english_name(name)
+                if en_name:
+                    # 尝试使用英文名称搜索
+                    words = en_name.split()
+                    if len(words) > 1:
+                        acronym = ''.join(word[0].upper() for word in words if word and not word.lower() in ['inc', 'corp', 'co', 'ltd', 'limited'])
+                        try:
+                            ticker = yf.Ticker(acronym)
+                            info = ticker.info
+                            if info and 'longName' in info:
                                 results.append({
-                                    "symbol": symbol,
+                                    "symbol": acronym,
                                     "name": info.get("longName", ""),
                                     "exchange": info.get("exchange", "")
                                 })
