@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
 from .. import schemas
 from ..services.stock_service import StockDataService
 from ..services.ai_service import AIAnalysisService
-from ..models import Stock, AIAnalysis
+from ..services.stock_mapping_service import StockMappingService
+from ..models import Stock, AIAnalysis, StockNameMapping
 from datetime import datetime, timedelta
 import logging
 
@@ -58,49 +59,135 @@ async def search_stock_by_name(name: str):
         logger.error(f"查找股票失败 {name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/mapping", response_model=schemas.BaseResponse)
-async def get_stock_name_mapping():
-    """获取股票名称映射表"""
+@router.get("/mappings", response_model=schemas.BaseResponse)
+async def get_stock_name_mappings(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """获取股票名称映射列表"""
     try:
-        from ..services.stock_mapping_service import StockMappingService
         mapping_service = StockMappingService()
+        mappings = mapping_service.get_all_mappings(skip, limit)
+        total = db.query(StockNameMapping).count()
         
         return schemas.BaseResponse(
-            message="获取股票名称映射表成功",
-            data=mapping_service.mapping_data
+            message="获取股票名称映射列表成功",
+            data={
+                "items": mappings,
+                "total": total,
+                "skip": skip,
+                "limit": limit
+            }
         )
         
     except Exception as e:
-        logger.error(f"获取股票名称映射表失败: {e}")
+        logger.error(f"获取股票名称映射列表失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/mapping", response_model=schemas.BaseResponse)
+@router.get("/mappings/{mapping_id}", response_model=schemas.BaseResponse)
+async def get_stock_name_mapping(
+    mapping_id: int,
+    db: Session = Depends(get_db)
+):
+    """获取单个股票名称映射"""
+    try:
+        mapping_service = StockMappingService()
+        mapping = mapping_service.get_mapping_by_id(mapping_id)
+        
+        if not mapping:
+            raise HTTPException(status_code=404, detail="映射不存在")
+        
+        return schemas.BaseResponse(
+            message="获取股票名称映射成功",
+            data=mapping
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取股票名称映射失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/mappings", response_model=schemas.BaseResponse)
 async def add_stock_name_mapping(
-    chinese_name: str,
-    english_name: str,
-    symbol: str
+    mapping: schemas.StockNameMappingCreate,
+    db: Session = Depends(get_db)
 ):
     """添加股票名称映射"""
     try:
-        from ..services.stock_mapping_service import StockMappingService
         mapping_service = StockMappingService()
+        result = mapping_service.add_mapping(
+            mapping.chinese_name,
+            mapping.english_name,
+            mapping.symbol
+        )
         
-        success = mapping_service.add_mapping(chinese_name, english_name, symbol)
+        if not result:
+            raise HTTPException(status_code=400, detail="添加映射失败，可能是中文名称已存在")
         
-        if success:
-            return schemas.BaseResponse(
-                message="添加股票名称映射成功",
-                data={
-                    "chinese_name": chinese_name,
-                    "english_name": english_name,
-                    "symbol": symbol
-                }
-            )
-        else:
-            raise HTTPException(status_code=500, detail="添加股票名称映射失败")
+        return schemas.BaseResponse(
+            message="添加股票名称映射成功",
+            data=result
+        )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"添加股票名称映射失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/mappings/{mapping_id}", response_model=schemas.BaseResponse)
+async def update_stock_name_mapping(
+    mapping_id: int,
+    mapping: schemas.StockNameMappingUpdate,
+    db: Session = Depends(get_db)
+):
+    """更新股票名称映射"""
+    try:
+        mapping_service = StockMappingService()
+        result = mapping_service.update_mapping(
+            mapping_id,
+            mapping.chinese_name,
+            mapping.english_name,
+            mapping.symbol
+        )
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="更新映射失败，映射不存在或中文名称已被使用")
+        
+        return schemas.BaseResponse(
+            message="更新股票名称映射成功",
+            data=result
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新股票名称映射失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/mappings/{mapping_id}", response_model=schemas.BaseResponse)
+async def delete_stock_name_mapping(
+    mapping_id: int,
+    db: Session = Depends(get_db)
+):
+    """删除股票名称映射"""
+    try:
+        mapping_service = StockMappingService()
+        success = mapping_service.delete_mapping(mapping_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="删除映射失败，映射不存在")
+        
+        return schemas.BaseResponse(
+            message="删除股票名称映射成功"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除股票名称映射失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{symbol}", response_model=schemas.BaseResponse)
