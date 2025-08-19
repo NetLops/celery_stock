@@ -35,14 +35,28 @@ async def get_stocks(
             updated_at=stock.updated_at
         ))
     return result
-async def get_stocks(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """获取股票列表"""
-    stocks = db.query(Stock).offset(skip).limit(limit).all()
-    return stocks
+
+@router.get("/search", response_model=schemas.BaseResponse)
+async def search_stock_by_name(name: str):
+    """根据股票名称查找股票代码"""
+    try:
+        stock_service = StockDataService()
+        results = stock_service.find_stock_by_name(name)
+        
+        if not results:
+            return schemas.BaseResponse(
+                message="未找到匹配的股票",
+                data=[]
+            )
+        
+        return schemas.BaseResponse(
+            message=f"找到 {len(results)} 个匹配的股票",
+            data=results
+        )
+        
+    except Exception as e:
+        logger.error(f"查找股票失败 {name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{symbol}", response_model=schemas.BaseResponse)
 async def get_stock_info(symbol: str, db: Session = Depends(get_db)):
