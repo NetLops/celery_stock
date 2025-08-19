@@ -41,7 +41,7 @@ const Dashboard = () => {
       const recommendationsResponse = await axios.get('/api/v1/recommendations/potential?limit=5');
       
       // 获取任务数据
-      const tasksResponse = await axios.get('/api/v1/tasks?limit=5');
+      const tasksResponse = await axios.get('/api/v1/tasks/?limit=5');
       
       // 模拟统计数据
       const stats = {
