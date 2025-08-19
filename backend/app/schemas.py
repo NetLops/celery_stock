@@ -132,3 +132,25 @@ class BatchAnalysisRequest(BaseModel):
     symbols: List[str] = Field(..., description="股票代码列表")
     analysis_types: Optional[List[str]] = Field(["technical", "fundamental"], description="分析类型")
     priority: Optional[str] = Field("normal", description="任务优先级")
+
+# 股票名称映射模型
+class StockNameMappingBase(BaseModel):
+    chinese_name: str = Field(..., description="中文名称")
+    english_name: str = Field(..., description="英文名称")
+    symbol: str = Field(..., description="股票代码")
+
+class StockNameMappingCreate(StockNameMappingBase):
+    pass
+
+class StockNameMappingUpdate(BaseModel):
+    chinese_name: Optional[str] = Field(None, description="中文名称")
+    english_name: Optional[str] = Field(None, description="英文名称")
+    symbol: Optional[str] = Field(None, description="股票代码")
+
+class StockNameMapping(StockNameMappingBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True

@@ -18,9 +18,11 @@ import {
   List,
   Select,
   AutoComplete,
-  Tooltip
+  Tooltip,
+  Form,
+  Popconfirm
 } from 'antd';
-import { SearchOutlined, FileSearchOutlined, LineChartOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { SearchOutlined, FileSearchOutlined, LineChartOutlined, InfoCircleOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 
@@ -39,9 +41,19 @@ const StockAnalysis = () => {
   const [searchValue, setSearchValue] = useState('');
   const [stockOptions, setStockOptions] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  
+  // 映射表相关状态
   const [mappingModalVisible, setMappingModalVisible] = useState(false);
-  const [mappingData, setMappingData] = useState({});
+  const [mappingData, setMappingData] = useState([]);
   const [mappingLoading, setMappingLoading] = useState(false);
+  const [mappingPagination, setMappingPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+  const [mappingFormVisible, setMappingFormVisible] = useState(false);
+  const [editingMapping, setEditingMapping] = useState(null);
+  const [mappingForm] = Form.useForm();
 
   const handleSearch = async (symbol) => {
     if (!symbol) {
@@ -142,11 +154,20 @@ const StockAnalysis = () => {
     }
   };
 
-  const loadStockNameMapping = async () => {
+  // 映射表相关函数
+  const loadMappingData = async (page = 1, pageSize = 10) => {
     setMappingLoading(true);
     try {
-      const response = await axios.get('/api/v1/stocks/mapping');
-      setMappingData(response.data.data || {});
+      const skip = (page - 1) * pageSize;
+      const response = await axios.get(`/api/v1/stocks/mappings?skip=${skip}&limit=${pageSize}`);
+      const { items, total } = response.data.data;
+      
+      setMappingData(items);
+      setMappingPagination({
+        current: page,
+        pageSize: pageSize,
+        total: total
+      });
     } catch (error) {
       console.error('获取股票名称映射失败:', error);
       message.error('获取股票名称映射失败');
@@ -155,9 +176,62 @@ const StockAnalysis = () => {
     }
   };
 
+  const handleMappingTableChange = (pagination) => {
+    loadMappingData(pagination.current, pagination.pageSize);
+  };
+
   const showMappingModal = () => {
     setMappingModalVisible(true);
-    loadStockNameMapping();
+    loadMappingData();
+  };
+
+  const showAddMappingForm = () => {
+    setEditingMapping(null);
+    mappingForm.resetFields();
+    setMappingFormVisible(true);
+  };
+
+  const showEditMappingForm = (record) => {
+    setEditingMapping(record);
+    mappingForm.setFieldsValue({
+      chinese_name: record.chinese_name,
+      english_name: record.english_name,
+      symbol: record.symbol
+    });
+    setMappingFormVisible(true);
+  };
+
+  const handleMappingFormSubmit = async () => {
+    try {
+      const values = await mappingForm.validateFields();
+      
+      if (editingMapping) {
+        // 更新映射
+        await axios.put(`/api/v1/stocks/mappings/${editingMapping.id}`, values);
+        message.success('更新映射成功');
+      } else {
+        // 添加映射
+        await axios.post('/api/v1/stocks/mappings', values);
+        message.success('添加映射成功');
+      }
+      
+      setMappingFormVisible(false);
+      loadMappingData(mappingPagination.current, mappingPagination.pageSize);
+    } catch (error) {
+      console.error('保存映射失败:', error);
+      message.error('保存映射失败: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const handleDeleteMapping = async (id) => {
+    try {
+      await axios.delete(`/api/v1/stocks/mappings/${id}`);
+      message.success('删除映射成功');
+      loadMappingData(mappingPagination.current, mappingPagination.pageSize);
+    } catch (error) {
+      console.error('删除映射失败:', error);
+      message.error('删除映射失败: ' + (error.response?.data?.detail || error.message));
+    }
   };
 
   const getChartOption = () => {
@@ -341,18 +415,33 @@ const StockAnalysis = () => {
       title: '股票代码',
       dataIndex: 'symbol',
       key: 'symbol',
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Space size="small">
+          <Button 
+            type="text" 
+            icon={<EditOutlined />} 
+            onClick={() => showEditMappingForm(record)}
+          />
+          <Popconfirm
+            title="确定要删除这条映射吗？"
+            onConfirm={() => handleDeleteMapping(record.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button 
+              type="text" 
+              danger 
+              icon={<DeleteOutlined />} 
+            />
+          </Popconfirm>
+        </Space>
+      )
     }
   ];
-
-  // 将映射数据转换为表格数据
-  const getMappingTableData = () => {
-    return Object.entries(mappingData).map(([chinese, data], index) => ({
-      key: index,
-      chinese_name: chinese,
-      english_name: data.en_name,
-      symbol: data.symbol
-    }));
-  };
 
   return (
     <div>
@@ -604,21 +693,67 @@ const StockAnalysis = () => {
         onCancel={() => setMappingModalVisible(false)}
         width={800}
         footer={[
+          <Button 
+            key="add" 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={showAddMappingForm}
+          >
+            添加映射
+          </Button>,
           <Button key="close" onClick={() => setMappingModalVisible(false)}>
             关闭
           </Button>
         ]}
       >
         <div style={{ marginBottom: 16 }}>
-          <Text>此表提供了常见股票的中英文名称映射，方便通过中文名称查找股票代码。</Text>
+          <Text>此表提供了常见股票的中英文名称映射，方便通过中文名称查找股票代码。您可以添加、编辑或删除映射。</Text>
         </div>
         <Table
           columns={mappingColumns}
-          dataSource={getMappingTableData()}
+          dataSource={mappingData}
           loading={mappingLoading}
-          pagination={{ pageSize: 10 }}
+          pagination={mappingPagination}
+          onChange={handleMappingTableChange}
+          rowKey="id"
           size="small"
         />
+      </Modal>
+
+      {/* 映射表编辑弹窗 */}
+      <Modal
+        title={editingMapping ? "编辑映射" : "添加映射"}
+        open={mappingFormVisible}
+        onCancel={() => setMappingFormVisible(false)}
+        onOk={handleMappingFormSubmit}
+        confirmLoading={mappingLoading}
+      >
+        <Form
+          form={mappingForm}
+          layout="vertical"
+        >
+          <Form.Item
+            name="chinese_name"
+            label="中文名称"
+            rules={[{ required: true, message: '请输入中文名称' }]}
+          >
+            <Input placeholder="请输入中文名称，如：苹果" />
+          </Form.Item>
+          <Form.Item
+            name="english_name"
+            label="英文名称"
+            rules={[{ required: true, message: '请输入英文名称' }]}
+          >
+            <Input placeholder="请输入英文名称，如：Apple Inc." />
+          </Form.Item>
+          <Form.Item
+            name="symbol"
+            label="股票代码"
+            rules={[{ required: true, message: '请输入股票代码' }]}
+          >
+            <Input placeholder="请输入股票代码，如：AAPL" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

@@ -2,6 +2,9 @@ import json
 import os
 from typing import Dict, List, Optional, Tuple
 import logging
+from sqlalchemy.orm import Session
+from ..models import StockNameMapping
+from ..database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -9,36 +12,33 @@ class StockMappingService:
     """股票名称映射服务，提供中英文股票名称映射"""
     
     def __init__(self):
-        self.mapping_data = {}
-        self.load_mapping_data()
+        self.session = SessionLocal()
+        self.ensure_default_mappings()
     
-    def load_mapping_data(self):
-        """加载映射数据"""
+    def ensure_default_mappings(self):
+        """确保默认映射数据存在于数据库中"""
         try:
-            # 获取映射文件路径
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            mapping_file = os.path.join(current_dir, '../data/stock_name_mapping.json')
+            # 检查数据库中是否已有映射数据
+            count = self.session.query(StockNameMapping).count()
             
-            # 如果文件存在，加载数据
-            if os.path.exists(mapping_file):
-                with open(mapping_file, 'r', encoding='utf-8') as f:
-                    self.mapping_data = json.load(f)
-                logger.info(f"成功加载股票名称映射数据，共 {len(self.mapping_data)} 条记录")
-            else:
-                # 如果文件不存在，初始化基础映射数据
-                self.mapping_data = self.get_default_mapping()
+            if count == 0:
+                logger.info("数据库中没有映射数据，正在导入默认映射...")
+                default_mappings = self.get_default_mapping()
                 
-                # 确保目录存在
-                os.makedirs(os.path.dirname(mapping_file), exist_ok=True)
+                # 将默认映射导入数据库
+                for chinese_name, data in default_mappings.items():
+                    mapping = StockNameMapping(
+                        chinese_name=chinese_name,
+                        english_name=data["en_name"],
+                        symbol=data["symbol"]
+                    )
+                    self.session.add(mapping)
                 
-                # 保存默认映射数据
-                with open(mapping_file, 'w', encoding='utf-8') as f:
-                    json.dump(self.mapping_data, f, ensure_ascii=False, indent=2)
-                logger.info(f"创建默认股票名称映射数据，共 {len(self.mapping_data)} 条记录")
+                self.session.commit()
+                logger.info(f"成功导入 {len(default_mappings)} 条默认映射数据")
         except Exception as e:
-            logger.error(f"加载股票名称映射数据失败: {e}")
-            # 如果加载失败，使用默认映射
-            self.mapping_data = self.get_default_mapping()
+            logger.error(f"确保默认映射数据失败: {e}")
+            self.session.rollback()
     
     def get_default_mapping(self) -> Dict[str, Dict[str, str]]:
         """获取默认的股票名称映射数据"""
@@ -111,70 +111,166 @@ class StockMappingService:
     
     def get_english_name(self, chinese_name: str) -> Optional[str]:
         """根据中文名称获取英文名称"""
-        if chinese_name in self.mapping_data:
-            return self.mapping_data[chinese_name]["en_name"]
+        mapping = self.session.query(StockNameMapping).filter(
+            StockNameMapping.chinese_name == chinese_name
+        ).first()
+        
+        if mapping:
+            return mapping.english_name
         return None
     
     def get_symbol(self, chinese_name: str) -> Optional[str]:
         """根据中文名称直接获取股票代码"""
-        if chinese_name in self.mapping_data:
-            return self.mapping_data[chinese_name]["symbol"]
+        mapping = self.session.query(StockNameMapping).filter(
+            StockNameMapping.chinese_name == chinese_name
+        ).first()
+        
+        if mapping:
+            return mapping.symbol
         return None
     
     def search_by_chinese_name(self, name_part: str) -> List[Dict[str, str]]:
         """根据中文名称片段搜索匹配的股票"""
         results = []
-        for cn_name, data in self.mapping_data.items():
-            if name_part.lower() in cn_name.lower():
-                results.append({
-                    "chinese_name": cn_name,
-                    "english_name": data["en_name"],
-                    "symbol": data["symbol"]
-                })
+        mappings = self.session.query(StockNameMapping).filter(
+            StockNameMapping.chinese_name.like(f"%{name_part}%")
+        ).all()
+        
+        for mapping in mappings:
+            results.append({
+                "chinese_name": mapping.chinese_name,
+                "english_name": mapping.english_name,
+                "symbol": mapping.symbol
+            })
         return results
     
-    def add_mapping(self, chinese_name: str, english_name: str, symbol: str) -> bool:
+    def get_all_mappings(self, skip: int = 0, limit: int = 100) -> List[Dict[str, str]]:
+        """获取所有映射数据"""
+        mappings = self.session.query(StockNameMapping).offset(skip).limit(limit).all()
+        
+        results = []
+        for mapping in mappings:
+            results.append({
+                "id": mapping.id,
+                "chinese_name": mapping.chinese_name,
+                "english_name": mapping.english_name,
+                "symbol": mapping.symbol,
+                "created_at": mapping.created_at.isoformat(),
+                "updated_at": mapping.updated_at.isoformat()
+            })
+        return results
+    
+    def get_mapping_by_id(self, mapping_id: int) -> Optional[Dict[str, str]]:
+        """根据ID获取映射"""
+        mapping = self.session.query(StockNameMapping).filter(
+            StockNameMapping.id == mapping_id
+        ).first()
+        
+        if mapping:
+            return {
+                "id": mapping.id,
+                "chinese_name": mapping.chinese_name,
+                "english_name": mapping.english_name,
+                "symbol": mapping.symbol,
+                "created_at": mapping.created_at.isoformat(),
+                "updated_at": mapping.updated_at.isoformat()
+            }
+        return None
+    
+    def add_mapping(self, chinese_name: str, english_name: str, symbol: str) -> Optional[Dict[str, str]]:
         """添加新的映射"""
         try:
-            self.mapping_data[chinese_name] = {
-                "en_name": english_name,
-                "symbol": symbol
+            # 检查是否已存在
+            existing = self.session.query(StockNameMapping).filter(
+                StockNameMapping.chinese_name == chinese_name
+            ).first()
+            
+            if existing:
+                return None
+            
+            # 创建新映射
+            mapping = StockNameMapping(
+                chinese_name=chinese_name,
+                english_name=english_name,
+                symbol=symbol
+            )
+            self.session.add(mapping)
+            self.session.commit()
+            self.session.refresh(mapping)
+            
+            return {
+                "id": mapping.id,
+                "chinese_name": mapping.chinese_name,
+                "english_name": mapping.english_name,
+                "symbol": mapping.symbol,
+                "created_at": mapping.created_at.isoformat(),
+                "updated_at": mapping.updated_at.isoformat()
             }
-            
-            # 保存到文件
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            mapping_file = os.path.join(current_dir, '../data/stock_name_mapping.json')
-            
-            # 确保目录存在
-            os.makedirs(os.path.dirname(mapping_file), exist_ok=True)
-            
-            with open(mapping_file, 'w', encoding='utf-8') as f:
-                json.dump(self.mapping_data, f, ensure_ascii=False, indent=2)
-            
-            return True
         except Exception as e:
             logger.error(f"添加映射失败: {e}")
-            return False
+            self.session.rollback()
+            return None
     
-    def update_mapping(self, chinese_name: str, english_name: str = None, symbol: str = None) -> bool:
+    def update_mapping(self, mapping_id: int, chinese_name: str = None, english_name: str = None, symbol: str = None) -> Optional[Dict[str, str]]:
         """更新现有映射"""
-        if chinese_name not in self.mapping_data:
-            return False
-        
         try:
+            mapping = self.session.query(StockNameMapping).filter(
+                StockNameMapping.id == mapping_id
+            ).first()
+            
+            if not mapping:
+                return None
+            
+            if chinese_name:
+                # 检查新的中文名称是否已被使用
+                if chinese_name != mapping.chinese_name:
+                    existing = self.session.query(StockNameMapping).filter(
+                        StockNameMapping.chinese_name == chinese_name
+                    ).first()
+                    if existing:
+                        return None
+                mapping.chinese_name = chinese_name
+            
             if english_name:
-                self.mapping_data[chinese_name]["en_name"] = english_name
+                mapping.english_name = english_name
+            
             if symbol:
-                self.mapping_data[chinese_name]["symbol"] = symbol
+                mapping.symbol = symbol
             
-            # 保存到文件
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            mapping_file = os.path.join(current_dir, '../data/stock_name_mapping.json')
+            self.session.commit()
+            self.session.refresh(mapping)
             
-            with open(mapping_file, 'w', encoding='utf-8') as f:
-                json.dump(self.mapping_data, f, ensure_ascii=False, indent=2)
-            
-            return True
+            return {
+                "id": mapping.id,
+                "chinese_name": mapping.chinese_name,
+                "english_name": mapping.english_name,
+                "symbol": mapping.symbol,
+                "created_at": mapping.created_at.isoformat(),
+                "updated_at": mapping.updated_at.isoformat()
+            }
         except Exception as e:
             logger.error(f"更新映射失败: {e}")
+            self.session.rollback()
+            return None
+    
+    def delete_mapping(self, mapping_id: int) -> bool:
+        """删除映射"""
+        try:
+            mapping = self.session.query(StockNameMapping).filter(
+                StockNameMapping.id == mapping_id
+            ).first()
+            
+            if not mapping:
+                return False
+            
+            self.session.delete(mapping)
+            self.session.commit()
+            return True
+        except Exception as e:
+            logger.error(f"删除映射失败: {e}")
+            self.session.rollback()
             return False
+    
+    def __del__(self):
+        if hasattr(self, 'session'):
+            self.session.close()
