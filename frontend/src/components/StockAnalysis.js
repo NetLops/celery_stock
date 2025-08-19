@@ -15,7 +15,9 @@ import {
   Modal,
   Typography,
   Divider,
-  List
+  List,
+  Select,
+  AutoComplete
 } from 'antd';
 import { SearchOutlined, FileSearchOutlined, LineChartOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
@@ -23,6 +25,7 @@ import axios from 'axios';
 
 const { Search } = Input;
 const { Title, Paragraph, Text } = Typography;
+const { Option } = Select;
 
 const StockAnalysis = () => {
   const [loading, setLoading] = useState(false);
@@ -31,6 +34,10 @@ const StockAnalysis = () => {
   const [chartData, setChartData] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState(null);
+  const [searchMode, setSearchMode] = useState('symbol'); // 'symbol' 或 'name'
+  const [searchValue, setSearchValue] = useState('');
+  const [stockOptions, setStockOptions] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const handleSearch = async (symbol) => {
     if (!symbol) {
@@ -78,6 +85,56 @@ const StockAnalysis = () => {
       message.error('提交分析失败: ' + (error.response?.data?.detail || error.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const searchStockByName = async (name) => {
+    if (!name || name.length < 2) {
+      setStockOptions([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await axios.get(`/api/v1/stocks/search?name=${encodeURIComponent(name)}`);
+      const results = response.data.data || [];
+      
+      const options = results.map(stock => ({
+        value: stock.symbol,
+        label: (
+          <div>
+            <div><b>{stock.symbol}</b> - {stock.name}</div>
+            <div style={{ fontSize: '12px', color: '#888' }}>{stock.exchange || '未知交易所'}</div>
+          </div>
+        )
+      }));
+      
+      setStockOptions(options);
+    } catch (error) {
+      console.error('搜索股票失败:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSearchModeChange = (mode) => {
+    setSearchMode(mode);
+    setSearchValue('');
+    setStockOptions([]);
+  };
+
+  const handleSearchInputChange = (value) => {
+    setSearchValue(value);
+    if (searchMode === 'name') {
+      searchStockByName(value);
+    }
+  };
+
+  const handleSearchSubmit = (value) => {
+    if (searchMode === 'symbol') {
+      handleSearch(value);
+    } else if (value) {
+      handleSearch(value);
     }
   };
 
@@ -251,14 +308,54 @@ const StockAnalysis = () => {
     <div>
       <Card title="股票分析" style={{ marginBottom: 24 }}>
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Search
-            placeholder="请输入股票代码 (如: AAPL, GOOGL)"
-            allowClear
-            enterButton={<SearchOutlined />}
-            size="large"
-            onSearch={handleSearch}
-            loading={loading}
-          />
+          <Input.Group compact>
+            <Select 
+              defaultValue="symbol" 
+              value={searchMode}
+              onChange={handleSearchModeChange}
+              style={{ width: '120px' }}
+            >
+              <Option value="symbol">股票代码</Option>
+              <Option value="name">股票名称</Option>
+            </Select>
+            
+            {searchMode === 'symbol' ? (
+              <Search
+                placeholder="请输入股票代码 (如: AAPL, GOOGL)"
+                allowClear
+                enterButton={<SearchOutlined />}
+                size="large"
+                style={{ width: 'calc(100% - 120px)' }}
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onSearch={handleSearchSubmit}
+                loading={loading}
+              />
+            ) : (
+              <AutoComplete
+                placeholder="请输入股票名称 (如: 苹果, 谷歌)"
+                allowClear
+                style={{ width: 'calc(100% - 120px)' }}
+                value={searchValue}
+                onChange={handleSearchInputChange}
+                onSelect={handleSearchSubmit}
+                options={stockOptions}
+                loading={searchLoading}
+              >
+                <Input 
+                  size="large"
+                  suffix={
+                    <Button 
+                      type="primary" 
+                      icon={<SearchOutlined />} 
+                      loading={loading || searchLoading}
+                      onClick={() => searchValue && handleSearchSubmit(searchValue)}
+                    />
+                  }
+                />
+              </AutoComplete>
+            )}
+          </Input.Group>
           
           {stockData && (
             <Row gutter={16} style={{ marginTop: 16 }}>

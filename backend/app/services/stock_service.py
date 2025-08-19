@@ -1,12 +1,13 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from ..models import Stock, StockPrice
 from ..database import SessionLocal
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,73 @@ class StockDataService:
         except Exception as e:
             logger.error(f"获取K线图数据失败 {symbol}: {e}")
             return {}
+    
+    def find_stock_by_name(self, name: str) -> List[Dict[str, str]]:
+        """根据股票名称查找股票代码
+        
+        Args:
+            name: 股票名称（中文或英文）
+            
+        Returns:
+            匹配的股票列表，每个元素包含 symbol 和 name
+        """
+        try:
+            # 首先在数据库中查找
+            query = self.session.query(Stock)
+            
+            # 如果输入是中文，尝试模糊匹配名称
+            if re.search(r'[\u4e00-\u9fff]', name):
+                stocks = query.filter(Stock.name.like(f"%{name}%")).all()
+            else:
+                # 英文名称可能是部分匹配
+                stocks = query.filter(Stock.name.ilike(f"%{name}%")).all()
+            
+            results = []
+            for stock in stocks:
+                results.append({
+                    "symbol": stock.symbol,
+                    "name": stock.name,
+                    "exchange": stock.exchange
+                })
+            
+            # 如果数据库中没有找到，尝试使用 yfinance 搜索
+            if not results:
+                # 这里我们可以使用 yfinance 的搜索功能，但它不直接支持名称搜索
+                # 所以我们可以尝试一些常见的股票代码格式
+                
+                # 对于美股，尝试直接使用名称的首字母缩写
+                if not re.search(r'[\u4e00-\u9fff]', name):
+                    possible_symbols = []
+                    
+                    # 尝试首字母缩写
+                    words = name.split()
+                    if len(words) > 1:
+                        acronym = ''.join(word[0].upper() for word in words if word)
+                        possible_symbols.append(acronym)
+                    
+                    # 尝试完整名称的前几个字母
+                    name_no_space = ''.join(name.split()).upper()
+                    if len(name_no_space) >= 2:
+                        possible_symbols.append(name_no_space[:4])
+                    
+                    for symbol in possible_symbols:
+                        try:
+                            ticker = yf.Ticker(symbol)
+                            info = ticker.info
+                            if info and 'longName' in info:
+                                results.append({
+                                    "symbol": symbol,
+                                    "name": info.get("longName", ""),
+                                    "exchange": info.get("exchange", "")
+                                })
+                        except:
+                            pass
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"根据名称查找股票失败 {name}: {e}")
+            return []
     
     def __del__(self):
         if hasattr(self, 'session'):
