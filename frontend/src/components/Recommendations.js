@@ -63,7 +63,7 @@ const Recommendations = () => {
         params.append('risk_levels', filters.riskLevels.join(','));
       }
 
-      const response = await axios.get(`/api/v1/recommendations?${params}`);
+      const response = await axios.get(`/api/v1/recommendations/?${params}`);
       setRecommendations(response.data.data?.recommendations || []);
     } catch (error) {
       console.error('获取推荐失败:', error);
