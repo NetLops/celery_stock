@@ -290,11 +290,11 @@ class AIAnalysisService:
 5. 相关参考信息
 
 请以JSON格式返回，包含：
-- answer: 主要回答
-- analysis: 分析见解
+- answer: 主要回答 (该字段是字符串)
+- analysis: 分析见解 (该字段是字符串)
 - recommendations: 推荐列表（列表的元素里包含 "symbol"、"action"、"rationale" 三个字段的信息）
-- chart_suggestions: K线图建议
-- references: 参考信息
+- chart_suggestions: K线图建议 (该字段是字符串)
+- references: 参考信息 (该字段是字符串数组)
 
 重要：请直接返回JSON格式的响应，不要添加任何Markdown格式标记（如 ```json 或 ```）。
 只返回原始JSON数据，没有任何其他文本或格式。
