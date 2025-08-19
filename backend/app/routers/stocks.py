@@ -58,6 +58,51 @@ async def search_stock_by_name(name: str):
         logger.error(f"查找股票失败 {name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/mapping", response_model=schemas.BaseResponse)
+async def get_stock_name_mapping():
+    """获取股票名称映射表"""
+    try:
+        from ..services.stock_mapping_service import StockMappingService
+        mapping_service = StockMappingService()
+        
+        return schemas.BaseResponse(
+            message="获取股票名称映射表成功",
+            data=mapping_service.mapping_data
+        )
+        
+    except Exception as e:
+        logger.error(f"获取股票名称映射表失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/mapping", response_model=schemas.BaseResponse)
+async def add_stock_name_mapping(
+    chinese_name: str,
+    english_name: str,
+    symbol: str
+):
+    """添加股票名称映射"""
+    try:
+        from ..services.stock_mapping_service import StockMappingService
+        mapping_service = StockMappingService()
+        
+        success = mapping_service.add_mapping(chinese_name, english_name, symbol)
+        
+        if success:
+            return schemas.BaseResponse(
+                message="添加股票名称映射成功",
+                data={
+                    "chinese_name": chinese_name,
+                    "english_name": english_name,
+                    "symbol": symbol
+                }
+            )
+        else:
+            raise HTTPException(status_code=500, detail="添加股票名称映射失败")
+        
+    except Exception as e:
+        logger.error(f"添加股票名称映射失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/{symbol}", response_model=schemas.BaseResponse)
 async def get_stock_info(symbol: str, db: Session = Depends(get_db)):
     """获取单个股票信息"""
